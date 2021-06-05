@@ -3,4 +3,4 @@ project(os_ex3)
 
 set(CMAKE_CXX_STANDARD 11)
 
-add_executable(os_ex3 Barrier.cpp Barrier.h MapReduceClient.h MapReduceFramework.h)
+add_executable(os_ex3 Barrier.cpp Barrier.h MapReduceClient.h MapReduceFramework.h MapReduceFramework.cpp)
