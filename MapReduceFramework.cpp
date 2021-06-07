@@ -60,10 +60,7 @@ void emit3(K3 *key, V3 *value, void *context)
     //todo : wrap in function
     auto *jc = static_cast<JobContext *>(context);
     pthread_mutex_lock(&jc->lock);
-    OutputPair pair;
-    pair.first = key;
-    pair.second = value;
-    jc->outputVec.push_back(pair);
+    jc->outputVec.push_back(OutputPair(key, value));
     // todo : add to correct place plz
     jc->counter +=  1;
     pthread_mutex_unlock(&jc->lock);
