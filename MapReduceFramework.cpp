@@ -21,7 +21,7 @@ JobHandle startMapReduceJob(const MapReduceClient &client,
     pthread_mutex_t job_lock;
     auto* threads = new pthread_t[multiThreadLevel];
     auto *contexts = new ThreadContext[multiThreadLevel];
-    auto *jobContext = new JobContext(threads, contexts, outputVec, inputVec, client);
+    auto *jobContext = new JobContext(threads, contexts, outputVec, inputVec, client, multiThreadLevel);
 
     for (int i = 0; i < multiThreadLevel; ++i)
     {
@@ -72,13 +72,35 @@ void *mapThread(void *arg)
     tc->jobContext->state.stage = MAP_STAGE;
     uint64_t i;
     while((i = tc->jobContext->nextInputIdx++) < tc->jobContext->getTotalKeys()){
-
         InputPair currPair = tc->jobContext->inputVec[i];
         tc->jobContext->client.map(currPair.first, currPair.second, tc);
+        //todo increment processed counter
     }
+    tc->jobContext->barrier.barrier();
+
+    //todo Reduce stage
+
     return nullptr;
 }
 
+void waitForJob(JobHandle job)
+{
+    auto *jc = static_cast<JobContext *>(job);
+    for (int i = 0; i < jc->numOfThreads; ++i)
+    {
+        pthread_join(jc->threads[i], nullptr);
+        //todo handle the error
+    }
+}
+
+
+
+void closeJobHandle(JobHandle job)
+{
+    auto *jc = static_cast<JobContext *>(job);
+    waitForJob(job);
+    delete jc;
+}
 
 
 

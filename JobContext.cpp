@@ -3,10 +3,11 @@
 //
 
 #include "JobContext.h"
+
 JobContext::JobContext(pthread_t *threads,ThreadContext* contexts , OutputVec &outputVec,const InputVec &inputVec,
-                       const MapReduceClient &client) :inputVec(inputVec), outputVec(outputVec), contexts(contexts),
+                       const MapReduceClient &client, int numOfThreads) :inputVec(inputVec), outputVec(outputVec), contexts(contexts),
                        client(client), threads(threads), counter(0),state({UNDEFINED_STAGE, 0}), isWaiting(false),
-                       nextInputIdx(0)
+                       nextInputIdx(0), numOfThreads(numOfThreads), barrier(Barrier(numOfThreads))
 {
 
 }
@@ -32,7 +33,7 @@ uint64_t JobContext::getProcessedKeys()
 
 stage_t JobContext::getStage()
 {
-    return static_cast<stage_t>((counter >> (unsigned)62 )& (unsigned) 3);
+    return static_cast<stage_t>((counter >> (unsigned)62) & (unsigned) 3);
 }
 
 
@@ -41,4 +42,5 @@ JobContext::~JobContext()
 {
     pthread_mutex_destroy(&lock);
     delete[] threads;
+    delete contexts;
 }

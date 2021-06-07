@@ -5,6 +5,7 @@
 #include "MapReduceFramework.h"
 #include <pthread.h>
 #include <iostream>
+#include "Barrier.h"
 
 #define MUTEX_INIT_FAIL "system error: initializing mutex for thread failed\n"
 #define THREAD_INIT_FAIL "system error: creating thread failed\n"
@@ -24,6 +25,8 @@ public:
     std::atomic<uint64_t> counter;
     std::atomic<int> nextInputIdx;
 
+    int numOfThreads;
+    Barrier barrier;
     pthread_mutex_t lock{};
     const InputVec& inputVec;
     OutputVec& outputVec;
@@ -33,7 +36,7 @@ public:
     ThreadContext* contexts;
     bool isWaiting;
 
-    JobContext(pthread_t* threads, ThreadContext* contexts, OutputVec& outputVec, const InputVec& inputVec, const MapReduceClient& client);
+    JobContext(pthread_t* threads, ThreadContext* contexts, OutputVec& outputVec, const InputVec& inputVec, const MapReduceClient& client, int numOfThreads);
 
     void setTotalKeys(uint64_t totalKeys);
     uint64_t getTotalKeys();
