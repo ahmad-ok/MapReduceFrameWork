@@ -5,14 +5,35 @@
 
 #define MUTEX_INIT_FAIL "system error: initializing mutex for thread failed\n"
 #define THREAD_INIT_FAIL "system error: creating thread failed\n"
-struct JobContext //todo : add to class
+
+class JobContext
 {
-    pthread_mutex_t lock;
-    OutputVec &outputVec;
-    std::atomic<uint64_t> *counter;
+
+public:
+    std::atomic<uint64_t> counter;
+    pthread_mutex_t lock; // job lock
+    OutputVec *outputVec;
     JobState state;
     pthread_t *threads;
     bool isWaiting;
+
+    JobContext(int multiThreadLevel)
+    {
+        this->threads = new pthread_t[multiThreadLevel];
+        this->state = {UNDEFINED_STAGE, 0};
+        this->outputVec = new OutputVec;
+        this->isWaiting = false;
+    }
+
+    ~JobContext()
+    {
+        pthread_mutex_destroy(&lock);
+    }
+
+    pthread_t* job_threads()
+    {
+        return threads;
+    }
 };
 
 struct ThreadContext //todo : warning ?
@@ -34,10 +55,9 @@ JobHandle startMapReduceJob(const MapReduceClient &client,
                             const InputVec &inputVec, OutputVec &outputVec,
                             int multiThreadLevel)
 {
-    auto* counter = new std::atomic<uint64_t>(0);
-    auto *threads = new pthread_t[multiThreadLevel];
+
     pthread_mutex_t job_lock;
-    auto *jobContext = new JobContext{job_lock, outputVec, counter, {UNDEFINED_STAGE, 0}, threads, false};
+    auto *jobContext = new JobContext(multiThreadLevel);
     auto *contexts = new ThreadContext[multiThreadLevel];
     for (int i = 0; i < multiThreadLevel; ++i)
     {
@@ -49,6 +69,7 @@ JobHandle startMapReduceJob(const MapReduceClient &client,
         contexts[i] = {lock, inputVec[i], IntermediateVec(), OutputPair(), jobContext};;
     }
 
+    pthread_t *threads = jobContext->job_threads();
     for (int i = 0; i < multiThreadLevel; ++i)
     {
         if (pthread_create(threads + i, nullptr, thread_job, contexts + i))
@@ -88,8 +109,13 @@ void emit3(K3 *key, V3 *value, void *context)
     OutputPair pair;
     pair.first = key;
     pair.second = value;
-    jc->outputVec.push_back(pair);
+    jc->outputVec->push_back(pair);
     pthread_mutex_unlock(&jc->lock);
+}
+
+void* mapThread(void* arg)
+{
+    auto* tc = static_cast<ThreadContext*>(arg);
 
 }
 
