@@ -20,6 +20,7 @@ void JobContext::setTotalKeys(uint64_t totalKeys)
     counter = (counter & (~mask << (unsigned)31)) | (totalKeys << (unsigned)31);
 }
 
+
 uint64_t JobContext::getTotalKeys()
 {
     //todo : 32 or 31 ???
@@ -35,7 +36,6 @@ stage_t JobContext::getStage()
 {
     return static_cast<stage_t>((counter >> (unsigned)62) & (unsigned) 3);
 }
-
 
 
 JobContext::~JobContext()

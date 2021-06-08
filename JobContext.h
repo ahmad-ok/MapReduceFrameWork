@@ -12,11 +12,17 @@
 
 class JobContext;
 
+typedef std::pair<K2*, std::vector<V2*>> shuffleIntermediatePair;
+typedef std::vector<shuffleIntermediatePair> shuffleIntermediateVec;
+
 struct ThreadContext //todo : warning ?
 {
     IntermediateVec intermediateVec;
     OutputPair outputPair;
     JobContext *jobContext;
+    shuffleIntermediateVec shuffledVec;
+    int id;
+
 };
 
 class JobContext{
