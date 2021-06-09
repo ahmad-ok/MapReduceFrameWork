@@ -6,10 +6,12 @@
 
 JobContext::JobContext(pthread_t *threads,ThreadContext* contexts , OutputVec &outputVec,const InputVec &inputVec,
                        const MapReduceClient &client, int numOfThreads) :inputVec(inputVec), outputVec(outputVec), contexts(contexts),
-                       client(client), threads(threads), counter(0),state({UNDEFINED_STAGE, 0}), isWaiting(false),
+                       client(client), threads(threads), counter(0), isWaiting(false),
                        nextInputIdx(0), numOfThreads(numOfThreads), barrier(Barrier(numOfThreads))
 {
     sem_init(&semaphore, 0, 0);
+    state.stage = UNDEFINED_STAGE;
+    state.percentage = 0;
 }
 
 void JobContext::setTotalKeys(uint64_t totalKeys)

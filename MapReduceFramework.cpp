@@ -77,9 +77,9 @@ void *MapReducePhase(void *arg)
 
     //Sort the intermediate Vector
     //Note: no thread gets to this Stage if still it can process any pair of (k1,v1)
-    std::sort(tc->intermediateVec.begin(), tc->intermediateVec.end(), [](const K2 & lhs, const K2 & rhs)
+    std::sort(tc->intermediateVec.begin(), tc->intermediateVec.end(), [](const IntermediatePair & lhs, const IntermediatePair & rhs)
     {
-        return lhs < rhs;
+        return lhs.first < rhs.first;
     });
 
     // barrier before the Shuffle Phase

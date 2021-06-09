@@ -32,8 +32,8 @@ public:
 
     int numOfThreads;
     Barrier barrier;
-    pthread_mutex_t lock{};
-    pthread_mutex_t reduce_lock{};
+    pthread_mutex_t lock;
+    pthread_mutex_t reduce_lock;
     sem_t semaphore;
     const InputVec& inputVec;
     OutputVec& outputVec;
