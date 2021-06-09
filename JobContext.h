@@ -13,7 +13,7 @@
 
 class JobContext;
 
-typedef std::vector<std::vector<IntermediatePair>> shuffleIntermediateVec;
+typedef std::vector<IntermediateVec> shuffleIntermediateVec;
 
 struct ThreadContext //todo : warning ?
 {
@@ -33,6 +33,7 @@ public:
     int numOfThreads;
     Barrier barrier;
     pthread_mutex_t lock{};
+    pthread_mutex_t reduce_lock{};
     sem_t semaphore;
     const InputVec& inputVec;
     OutputVec& outputVec;

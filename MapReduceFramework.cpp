@@ -76,6 +76,7 @@ void *MapReducePhase(void *arg)
     }
 
     //Sort the intermediate Vector
+    //Note: no thread gets to this Stage if still it can process any pair of (k1,v1)
     std::sort(tc->intermediateVec.begin(), tc->intermediateVec.end(), [](const K2 & lhs, const K2 & rhs)
     {
         return lhs < rhs;
@@ -83,21 +84,40 @@ void *MapReducePhase(void *arg)
 
     // barrier before the Shuffle Phase
     tc->jobContext->barrier.barrier();
+    tc->jobContext->nextInputIdx = 0;
 
+    // reset it after all mapping are Done to Use it Again
+    tc->jobContext->nextInputIdx = 0;
     //Shuffle Stage only thread 0 call it
     if (tc->id == 0)
     {
-
         shufflePhase(arg);
         sem_post(&tc->jobContext->semaphore);
     }
 
     //reduce phase
+    //Note: the Semaphore is 0 it gets to 1 only when shuffling is Done
     sem_wait(&tc->jobContext->semaphore);
 
 
-    //todo Reduce stage
-    // a thread doesnt reduce until it's intermediate vector is already shuffled.
+    while(true)
+    {
+
+        pthread_mutex_lock(&tc->jobContext->reduce_lock);
+        if(tc->jobContext->shuffledVec.empty())
+        {
+            pthread_mutex_unlock(&tc->jobContext->reduce_lock);
+            break;
+        }
+        IntermediateVec* currVec = &tc->jobContext->shuffledVec.back();
+        tc->jobContext->shuffledVec.pop_back();
+        pthread_mutex_unlock(&tc->jobContext->reduce_lock);
+
+        tc->jobContext->client.reduce(currVec,tc->jobContext);
+    }
+
+
+
 
     return nullptr;
 }
@@ -128,7 +148,7 @@ void shufflePhase(void *arg)
         {
             if (!jc->contexts[i].intermediateVec.empty())
             {
-                jc->contexts[i].intermediateVec.pop_back();
+
                 std::vector<IntermediatePair> currKeyVector;
                 for (int j = 0; j < jc->numOfThreads; j++)
                 {
@@ -136,6 +156,7 @@ void shufflePhase(void *arg)
                         !(*maxPair->first < *jc->contexts[j].intermediateVec.back().first))
                     {
                         currKeyVector.push_back(jc->contexts[j].intermediateVec.back());
+                        jc->contexts[i].intermediateVec.pop_back();
                         jc->counter += 1;
                     }
                 }
@@ -155,7 +176,6 @@ void waitForJob(JobHandle job)
         //todo handle the error
     }
 }
-
 
 void closeJobHandle(JobHandle job)
 {
