@@ -1,6 +1,6 @@
+#include <algorithm>
 #include "MapReduceFramework.h"
 #include "JobContext.h"
-
 
 
 #define MUTEX_INIT_FAIL "system error: initializing mutex for thread failed\n"
@@ -8,14 +8,15 @@
 
 
 void *MapReducePhase(void *arg);
+
 void shufflePhase(void *arg);
 
-JobHandle startMapReduceJob(const MapReduceClient &client,
-                            const InputVec &inputVec, OutputVec &outputVec,
+JobHandle startMapReduceJob(const MapReduceClient & client,
+                            const InputVec & inputVec, OutputVec & outputVec,
                             int multiThreadLevel)
 {
 
-    auto* threads = new pthread_t[multiThreadLevel];
+    auto *threads = new pthread_t[multiThreadLevel];
     auto *contexts = new ThreadContext[multiThreadLevel];
     auto *jobContext = new JobContext(threads, contexts, outputVec, inputVec, client, multiThreadLevel);
 
@@ -36,7 +37,7 @@ JobHandle startMapReduceJob(const MapReduceClient &client,
 void getJobState(JobHandle job, JobState *state)
 {
     auto *context = static_cast<JobContext *>(job);
-    context->state.percentage = context->getProcessedKeys()/(float)context->getTotalKeys();
+    context->state.percentage = context->getProcessedKeys() / (float) context->getTotalKeys();
     state->percentage = context->state.percentage;
     state->stage = context->state.stage;
 }
@@ -49,7 +50,7 @@ void emit2(K2 *key, V2 *value, void *context)
     pair.first = key;
     pair.second = value;
     tc->intermediateVec.push_back(pair);
-    tc->jobContext->counter +=  1;
+    tc->jobContext->counter += 1;
 }
 
 void emit3(K3 *key, V3 *value, void *context)
@@ -59,22 +60,23 @@ void emit3(K3 *key, V3 *value, void *context)
     pthread_mutex_lock(&jc->lock);
     jc->outputVec.push_back(OutputPair(key, value));
     // todo : add to correct place plz
-    jc->counter +=  1;
+    jc->counter += 1;
     pthread_mutex_unlock(&jc->lock);
 }
 
 void *MapReducePhase(void *arg)
 {
-    auto* tc = static_cast<ThreadContext*>(arg);
+    auto *tc = static_cast<ThreadContext *>(arg);
     tc->jobContext->state.stage = MAP_STAGE;
     uint64_t i;
-    while((i = tc->jobContext->nextInputIdx++) < tc->jobContext->getTotalKeys()){
+    while ((i = tc->jobContext->nextInputIdx++) < tc->jobContext->getTotalKeys())
+    {
         InputPair currPair = tc->jobContext->inputVec[i];
         tc->jobContext->client.map(currPair.first, currPair.second, tc);
     }
 
     //Sort the intermediate Vector
-    sort( tc->intermediateVec.begin( ), tc->intermediateVec.end( ), [ ]( const K2& lhs, const K2& rhs )
+    std::sort(tc->intermediateVec.begin(), tc->intermediateVec.end(), [](const K2 & lhs, const K2 & rhs)
     {
         return lhs < rhs;
     });
@@ -83,7 +85,7 @@ void *MapReducePhase(void *arg)
     tc->jobContext->barrier.barrier();
 
     //Shuffle Stage only thread 0 call it
-    if(tc->id == 0)
+    if (tc->id == 0)
     {
 
         shufflePhase(arg);
@@ -106,21 +108,32 @@ void shufflePhase(void *arg)
     jc->state.stage = SHUFFLE_STAGE;
     jc->counter -= jc->getProcessedKeys(); //zero the processed keys in shuffle Stage
 
-    while(jc->getTotalKeys() != jc->getProcessedKeys())
+    while (jc->getTotalKeys() != jc->getProcessedKeys())
     {
-        IntermediatePair currPair;
-
-        for(int i = 0; i < jc->numOfThreads; i++)
+        IntermediatePair *maxPair = nullptr;
+        for (int i = 0; i < jc->numOfThreads; ++i)
         {
-            if(!jc->contexts[i].intermediateVec.empty())
+            IntermediateVec& currVec = jc->contexts[i].intermediateVec;
+
+            if (!currVec.empty())
             {
-                currPair = jc->contexts[i].intermediateVec.back();
+                if (maxPair == nullptr || *maxPair->first < *currVec.back().first)
+                {
+                    maxPair = &currVec.back();
+                }
+            }
+        }
+
+        for (int i = 0; i < jc->numOfThreads; i++)
+        {
+            if (!jc->contexts[i].intermediateVec.empty())
+            {
                 jc->contexts[i].intermediateVec.pop_back();
                 std::vector<IntermediatePair> currKeyVector;
                 for (int j = 0; j < jc->numOfThreads; j++)
                 {
-                    if(!(*jc->contexts[j].intermediateVec.back().first < *currPair.first) &&
-                        !(*currPair.first < *jc->contexts[j].intermediateVec.back().first))
+                    if (!(*jc->contexts[j].intermediateVec.back().first < *maxPair->first) &&
+                        !(*maxPair->first < *jc->contexts[j].intermediateVec.back().first))
                     {
                         currKeyVector.push_back(jc->contexts[j].intermediateVec.back());
                         jc->counter += 1;
