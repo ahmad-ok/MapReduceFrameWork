@@ -1,6 +1,7 @@
 #include <algorithm>
 #include "MapReduceFramework.h"
 #include "JobContext.h"
+#include "unistd.h"
 
 
 #define MUTEX_INIT_FAIL "system error: initializing mutex for thread failed\n"
@@ -19,15 +20,17 @@ JobHandle startMapReduceJob(const MapReduceClient & client,
     auto *threads = new pthread_t[multiThreadLevel];
     auto *contexts = new ThreadContext[multiThreadLevel];
     auto *jobContext = new JobContext(threads, contexts, outputVec, inputVec, client, multiThreadLevel);
-
+    jobContext->setTotalKeys(inputVec.size());
     for (int i = 0; i < multiThreadLevel; ++i)
     {
+        jobContext->contexts[i].id = i;
+        jobContext->contexts[i].jobContext = jobContext;
         if (pthread_create(&jobContext->threads[i], nullptr, MapReducePhase, &jobContext->contexts[i]))
         {
             std::cerr << THREAD_INIT_FAIL;
             //todo: free and exit
         }
-        jobContext->contexts[i].id = i;
+
     }
     return jobContext;
 
@@ -37,7 +40,7 @@ JobHandle startMapReduceJob(const MapReduceClient & client,
 void getJobState(JobHandle job, JobState *state)
 {
     auto *context = static_cast<JobContext *>(job);
-    context->state.percentage = context->getProcessedKeys() / (float) context->getTotalKeys();
+    context->state.percentage = (context->getProcessedKeys() / (float) context->getTotalKeys()) * 100;
     state->percentage = context->state.percentage;
     state->stage = context->state.stage;
 }
@@ -50,7 +53,7 @@ void emit2(K2 *key, V2 *value, void *context)
     pair.first = key;
     pair.second = value;
     tc->intermediateVec.push_back(pair);
-    tc->jobContext->counter += 1;
+    tc->jobContext->numOfIntermediatePairs++;
 }
 
 void emit3(K3 *key, V3 *value, void *context)
@@ -68,56 +71,58 @@ void *MapReducePhase(void *arg)
 {
     auto *tc = static_cast<ThreadContext *>(arg);
     tc->jobContext->state.stage = MAP_STAGE;
-    uint64_t i;
-    while ((i = tc->jobContext->nextInputIdx++) < tc->jobContext->getTotalKeys())
+    uint64_t i = 0;
+    while (tc->jobContext->nextInputIdx < tc->jobContext->getTotalKeys())
     {
+        tc->jobContext->nextInputIdx++;
+        i = tc->jobContext->nextInputIdx.load() - 1;
         InputPair currPair = tc->jobContext->inputVec[i];
         tc->jobContext->client.map(currPair.first, currPair.second, tc);
+        tc->jobContext->counter += 1;
     }
 
     //Sort the intermediate Vector
     //Note: no thread gets to this Stage if still it can process any pair of (k1,v1)
     std::sort(tc->intermediateVec.begin(), tc->intermediateVec.end(), [](const IntermediatePair & lhs, const IntermediatePair & rhs)
     {
-        return lhs.first < rhs.first;
+        return *lhs.first < *rhs.first;
     });
 
     // barrier before the Shuffle Phase
     tc->jobContext->barrier.barrier();
-    tc->jobContext->nextInputIdx = 0;
 
-    // reset it after all mapping are Done to Use it Again
-    tc->jobContext->nextInputIdx = 0;
+
     //Shuffle Stage only thread 0 call it
     if (tc->id == 0)
     {
-        shufflePhase(arg);
+        shufflePhase(tc->jobContext);
+        tc->jobContext->state.stage = REDUCE_STAGE;
+        tc->jobContext->setTotalKeys(tc->jobContext->numOfVecsToReduce);
+        tc->jobContext->counter -= tc->jobContext->getProcessedKeys();
         sem_post(&tc->jobContext->semaphore);
     }
 
     //reduce phase
     //Note: the Semaphore is 0 it gets to 1 only when shuffling is Done
-    sem_wait(&tc->jobContext->semaphore);
-
 
     while(true)
     {
-
+        sem_wait(&(tc->jobContext->semaphore));
         pthread_mutex_lock(&tc->jobContext->reduce_lock);
         if(tc->jobContext->shuffledVec.empty())
         {
             pthread_mutex_unlock(&tc->jobContext->reduce_lock);
             break;
         }
-        IntermediateVec* currVec = &tc->jobContext->shuffledVec.back();
+        std::cout << "thread num" << tc->id << " is reducing" << std::endl;
+        IntermediateVec currVec = tc->jobContext->shuffledVec.back();
         tc->jobContext->shuffledVec.pop_back();
         pthread_mutex_unlock(&tc->jobContext->reduce_lock);
 
-        tc->jobContext->client.reduce(currVec,tc->jobContext);
+        //todo Delete This Print
+        tc->jobContext->client.reduce(&currVec,tc->jobContext);
+
     }
-
-
-
 
     return nullptr;
 }
@@ -127,7 +132,7 @@ void shufflePhase(void *arg)
     auto *jc = static_cast<JobContext *>(arg);
     jc->state.stage = SHUFFLE_STAGE;
     jc->counter -= jc->getProcessedKeys(); //zero the processed keys in shuffle Stage
-
+    jc->setTotalKeys(jc->numOfIntermediatePairs);
     while (jc->getTotalKeys() != jc->getProcessedKeys())
     {
         IntermediatePair *maxPair = nullptr;
@@ -144,25 +149,20 @@ void shufflePhase(void *arg)
             }
         }
 
+        std::vector<IntermediatePair> currKeyVector;
         for (int i = 0; i < jc->numOfThreads; i++)
         {
-            if (!jc->contexts[i].intermediateVec.empty())
+            while (!(jc->contexts[i].intermediateVec.empty()) &&
+            !(*jc->contexts[i].intermediateVec.back().first < *maxPair->first) &&
+            !(*maxPair->first < *jc->contexts[i].intermediateVec.back().first))
             {
-
-                std::vector<IntermediatePair> currKeyVector;
-                for (int j = 0; j < jc->numOfThreads; j++)
-                {
-                    if (!(*jc->contexts[j].intermediateVec.back().first < *maxPair->first) &&
-                        !(*maxPair->first < *jc->contexts[j].intermediateVec.back().first))
-                    {
-                        currKeyVector.push_back(jc->contexts[j].intermediateVec.back());
-                        jc->contexts[i].intermediateVec.pop_back();
-                        jc->counter += 1;
-                    }
-                }
-                jc->shuffledVec.push_back(currKeyVector);
+                currKeyVector.push_back(jc->contexts[i].intermediateVec.back());
+                jc->contexts[i].intermediateVec.pop_back();
+                jc->counter += 1;
             }
         }
+        jc->shuffledVec.push_back(currKeyVector);
+        jc->numOfVecsToReduce++;
     }
 }
 

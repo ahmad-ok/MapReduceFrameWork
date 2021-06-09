@@ -6,12 +6,13 @@
 
 JobContext::JobContext(pthread_t *threads,ThreadContext* contexts , OutputVec &outputVec,const InputVec &inputVec,
                        const MapReduceClient &client, int numOfThreads) :inputVec(inputVec), outputVec(outputVec), contexts(contexts),
-                       client(client), threads(threads), counter(0), isWaiting(false),
-                       nextInputIdx(0), numOfThreads(numOfThreads), barrier(Barrier(numOfThreads))
+                       client(client), threads(threads), state({UNDEFINED_STAGE, 0}) ,counter(0), isWaiting(false),
+                       nextInputIdx(0),numOfVecsToReduce(0),numOfIntermediatePairs(0), numOfThreads(numOfThreads), barrier(Barrier(numOfThreads))
 {
-    sem_init(&semaphore, 0, 0);
-    state.stage = UNDEFINED_STAGE;
-    state.percentage = 0;
+    //todo check Failiures
+    sem_init(&semaphore,0,0);
+    pthread_mutex_init(&lock, nullptr);
+    pthread_mutex_init(&reduce_lock, nullptr);
 }
 
 void JobContext::setTotalKeys(uint64_t totalKeys)
@@ -42,7 +43,7 @@ stage_t JobContext::getStage()
 
 JobContext::~JobContext()
 {
-    pthread_mutex_destroy(&lock);
-    delete[] threads;
-    delete contexts;
+   // pthread_mutex_destroy(&lock);
+    //delete[] threads;
+    //delete contexts;
 }

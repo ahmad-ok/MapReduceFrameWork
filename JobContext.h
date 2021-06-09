@@ -18,10 +18,8 @@ typedef std::vector<IntermediateVec> shuffleIntermediateVec;
 struct ThreadContext //todo : warning ?
 {
     IntermediateVec intermediateVec;
-    OutputPair outputPair;
     JobContext *jobContext;
     int id;
-
 };
 
 class JobContext{
@@ -29,6 +27,8 @@ class JobContext{
 public:
     std::atomic<uint64_t> counter;
     std::atomic<int> nextInputIdx;
+    std::atomic<int> numOfIntermediatePairs;
+    std::atomic<int> numOfVecsToReduce;
 
     int numOfThreads;
     Barrier barrier;
