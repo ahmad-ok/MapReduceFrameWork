@@ -12,16 +12,13 @@
 
 class JobContext;
 
-typedef std::pair<K2*, std::vector<V2*>> shuffleIntermediatePair;
-typedef std::vector<shuffleIntermediatePair> shuffleIntermediateVec;
+typedef std::vector<std::vector<IntermediatePair>> shuffleIntermediateVec;
 
 struct ThreadContext //todo : warning ?
 {
     IntermediateVec intermediateVec;
     OutputPair outputPair;
     JobContext *jobContext;
-    shuffleIntermediateVec shuffledVec;
-    bool finishedshuffle;
     int id;
 
 };
@@ -42,6 +39,7 @@ public:
     pthread_t* threads;
     ThreadContext* contexts;
     bool isWaiting;
+    shuffleIntermediateVec shuffledVec;
 
     JobContext(pthread_t* threads, ThreadContext* contexts, OutputVec& outputVec, const InputVec& inputVec, const MapReduceClient& client, int numOfThreads);
 

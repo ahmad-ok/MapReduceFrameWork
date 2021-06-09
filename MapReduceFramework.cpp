@@ -109,35 +109,30 @@ void shufflePhase(void *arg)
     auto *jc = static_cast<JobContext *>(arg);
     jc->state.stage = SHUFFLE_STAGE;
     jc->counter -= jc->getProcessedKeys(); //zero the processed keys in shuffle Stage
-    for (int i = 0; i < jc->numOfThreads - 1; i++)
+
+    while(jc->getTotalKeys() != jc->getProcessedKeys())
     {
-        //shuffle The intermediate of the i'th thread
-        K2* lastkey = nullptr;
         IntermediatePair currPair;
-        while(!jc->contexts[i].intermediateVec.empty())
+
+        for(int i = 0; i < jc->numOfThreads; i++)
         {
-            currPair = jc->contexts[i].intermediateVec.back();
-            jc->contexts[i].intermediateVec.pop_back();
-            if(lastkey!= nullptr && !(*lastkey < *currPair.first) && !(*currPair.first < *lastkey))
+            if(!jc->contexts[i].intermediateVec.empty())
             {
-                jc->contexts[i].shuffledVec.back().second.push_back(currPair.second);
+                currPair = jc->contexts[i].intermediateVec.back();
+                jc->contexts[i].intermediateVec.pop_back();
+                std::vector<IntermediatePair> currKeyVector;
+                for (int j = 0; j < jc->numOfThreads; j++)
+                {
+                    if(!(*jc->contexts[j].intermediateVec.back().first < *currPair.first) &&
+                        !(*currPair.first < *jc->contexts[j].intermediateVec.back().first))
+                    {
+                        currKeyVector.push_back(jc->contexts[j].intermediateVec.back());
+                        jc->counter += 1;
+                    }
+                }
+                jc->shuffledVec.push_back(currKeyVector);
             }
-            else
-            {
-                std::vector<V2*> vec;
-                shuffleIntermediatePair shufflepair;
-                shufflepair.first = currPair.first;
-                vec.push_back(currPair.second);
-                shufflepair.second = vec;
-                jc->contexts[i].shuffledVec.push_back(shufflepair);
-            }
-
-            jc->counter += 1;
-            lastkey = currPair.first;
         }
-
-        //todo araqnge get job state counters
-        jc->contexts[i].finishedshuffle = true;
     }
 }
 
