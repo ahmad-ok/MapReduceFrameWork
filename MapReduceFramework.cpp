@@ -27,7 +27,6 @@ JobHandle startMapReduceJob(const MapReduceClient &client,
             //todo: free and exit
         }
         jobContext->contexts[i].id = i;
-        jobContext->contexts[i].finishedshuffle = false;
     }
     return jobContext;
 
@@ -86,16 +85,13 @@ void *MapReducePhase(void *arg)
     //Shuffle Stage only thread 0 call it
     if(tc->id == 0)
     {
-        shufflePhase(arg);
-    }
 
+        shufflePhase(arg);
+        sem_post(&tc->jobContext->semaphore);
+    }
 
     //reduce phase
-    if(!(tc->finishedshuffle))
-    {
-        //sleep
-    }
-
+    sem_wait(&tc->jobContext->semaphore);
 
 
     //todo Reduce stage
@@ -135,6 +131,7 @@ void shufflePhase(void *arg)
         }
     }
 }
+
 
 void waitForJob(JobHandle job)
 {

@@ -9,7 +9,7 @@ JobContext::JobContext(pthread_t *threads,ThreadContext* contexts , OutputVec &o
                        client(client), threads(threads), counter(0),state({UNDEFINED_STAGE, 0}), isWaiting(false),
                        nextInputIdx(0), numOfThreads(numOfThreads), barrier(Barrier(numOfThreads))
 {
-
+    sem_init(&semaphore, 0, 0);
 }
 
 void JobContext::setTotalKeys(uint64_t totalKeys)
