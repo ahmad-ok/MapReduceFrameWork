@@ -7,7 +7,7 @@
 #define THREAD_INIT_FAIL "system error: creating thread failed\n"
 
 
-void *mapThread(void *arg);
+void *MapReducePhase(void *arg);
 void shufflePhase(void *arg);
 
 JobHandle startMapReduceJob(const MapReduceClient &client,
@@ -21,12 +21,13 @@ JobHandle startMapReduceJob(const MapReduceClient &client,
 
     for (int i = 0; i < multiThreadLevel; ++i)
     {
-        if (pthread_create(&jobContext->threads[i], nullptr, mapThread, &jobContext->contexts[i]))
+        if (pthread_create(&jobContext->threads[i], nullptr, MapReducePhase, &jobContext->contexts[i]))
         {
             std::cerr << THREAD_INIT_FAIL;
             //todo: free and exit
         }
         jobContext->contexts[i].id = i;
+        jobContext->contexts[i].finishedshuffle = false;
     }
     return jobContext;
 
@@ -63,7 +64,7 @@ void emit3(K3 *key, V3 *value, void *context)
     pthread_mutex_unlock(&jc->lock);
 }
 
-void *mapThread(void *arg)
+void *MapReducePhase(void *arg)
 {
     auto* tc = static_cast<ThreadContext*>(arg);
     tc->jobContext->state.stage = MAP_STAGE;
@@ -71,7 +72,6 @@ void *mapThread(void *arg)
     while((i = tc->jobContext->nextInputIdx++) < tc->jobContext->getTotalKeys()){
         InputPair currPair = tc->jobContext->inputVec[i];
         tc->jobContext->client.map(currPair.first, currPair.second, tc);
-        //todo increment processed counter
     }
 
     //Sort the intermediate Vector
@@ -79,7 +79,6 @@ void *mapThread(void *arg)
     {
         return lhs < rhs;
     });
-
 
     // barrier before the Shuffle Phase
     tc->jobContext->barrier.barrier();
@@ -91,6 +90,14 @@ void *mapThread(void *arg)
     }
 
 
+    //reduce phase
+    if(!(tc->finishedshuffle))
+    {
+        //sleep
+    }
+
+
+
     //todo Reduce stage
     // a thread doesnt reduce until it's intermediate vector is already shuffled.
 
@@ -100,6 +107,8 @@ void *mapThread(void *arg)
 void shufflePhase(void *arg)
 {
     auto *jc = static_cast<JobContext *>(arg);
+    jc->state.stage = SHUFFLE_STAGE;
+    jc->counter -= jc->getProcessedKeys(); //zero the processed keys in shuffle Stage
     for (int i = 0; i < jc->numOfThreads - 1; i++)
     {
         //shuffle The intermediate of the i'th thread
@@ -122,8 +131,13 @@ void shufflePhase(void *arg)
                 shufflepair.second = vec;
                 jc->contexts[i].shuffledVec.push_back(shufflepair);
             }
+
+            jc->counter += 1;
             lastkey = currPair.first;
         }
+
+        //todo araqnge get job state counters
+        jc->contexts[i].finishedshuffle = true;
     }
 }
 

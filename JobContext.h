@@ -21,6 +21,7 @@ struct ThreadContext //todo : warning ?
     OutputPair outputPair;
     JobContext *jobContext;
     shuffleIntermediateVec shuffledVec;
+    bool finishedshuffle;
     int id;
 
 };
