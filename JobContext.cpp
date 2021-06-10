@@ -6,7 +6,7 @@
 
 JobContext::JobContext(pthread_t *threads,ThreadContext* contexts , OutputVec &outputVec,const InputVec &inputVec,
                        const MapReduceClient &client, int numOfThreads) :inputVec(inputVec), outputVec(outputVec), contexts(contexts),
-                       client(client), threads(threads), state({UNDEFINED_STAGE, 0}) ,counter(0), isWaiting(false),
+                       client(client), threads(threads), state({UNDEFINED_STAGE, 0}) ,counter(0), threadsJoined(false),
                        nextInputIdx(0),numOfVecsToReduce(0),numOfIntermediatePairs(0), numOfThreads(numOfThreads), barrier(Barrier(numOfThreads))
 {
 

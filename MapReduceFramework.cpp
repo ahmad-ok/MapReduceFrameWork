@@ -77,7 +77,7 @@ void *MapReducePhase(void *arg)
     auto *tc = static_cast<ThreadContext *>(arg);
     tc->jobContext->state.stage = MAP_STAGE;
     uint64_t i;
-    while (tc->jobContext->nextInputIdx < tc->jobContext->getTotalKeys())
+    while ((unsigned int)tc->jobContext->nextInputIdx < tc->jobContext->getTotalKeys())
     {
         tc->jobContext->nextInputIdx++;
         i = tc->jobContext->nextInputIdx.load() - 1;
@@ -179,12 +179,16 @@ void waitForJob(JobHandle job)
     {
         ERROR_WRAPPER(pthread_join(jc->threads[i], nullptr), THREAD_JOIN_FAIL)
     }
+    jc->threadsJoined = true;
 }
 
 void closeJobHandle(JobHandle job)
 {
     auto *jc = static_cast<JobContext *>(job);
-    waitForJob(job);
+    if(!jc->threadsJoined)
+    {
+        waitForJob(job);
+    }
     delete jc;
 }
 

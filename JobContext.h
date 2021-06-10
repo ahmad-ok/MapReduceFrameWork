@@ -31,15 +31,15 @@ public:
 
     int numOfThreads;
     Barrier barrier;
-    pthread_mutex_t lock;
-    pthread_mutex_t reduce_lock;
+    pthread_mutex_t lock{};
+    pthread_mutex_t reduce_lock{};
     const InputVec& inputVec;
     OutputVec& outputVec;
     const MapReduceClient& client;
     JobState state;
     pthread_t* threads;
     ThreadContext* contexts;
-    bool isWaiting;
+    bool threadsJoined;
     shuffleIntermediateVec shuffledVec;
 
     JobContext(pthread_t* threads, ThreadContext* contexts, OutputVec& outputVec, const InputVec& inputVec, const MapReduceClient& client, int numOfThreads);
