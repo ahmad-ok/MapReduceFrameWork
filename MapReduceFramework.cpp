@@ -3,6 +3,7 @@
 #include "JobContext.h"
 
 
+
 #define THREAD_INIT_FAIL "system error: creating thread failed\n"
 #define THREAD_JOIN_FAIL "system error: joining thread failed\n"
 #define MUTEX_INIT_FAIL "system error: initializing mutex for thread failed\n"
@@ -79,6 +80,7 @@ void *MapReducePhase(void *arg)
     uint64_t i;
     while ((unsigned int)tc->jobContext->nextInputIdx < tc->jobContext->getTotalKeys())
     {
+
         i = tc->jobContext->nextInputIdx++;
         InputPair currPair = tc->jobContext->inputVec[i];
         tc->jobContext->client.map(currPair.first, currPair.second, tc);
@@ -91,7 +93,7 @@ void *MapReducePhase(void *arg)
               {
                   return *lhs.first < *rhs.first;
               });
-    tc->jobContext->counter += 1;
+    tc->jobContext->counter++;
 
     // barrier before the Shuffle Phase
     tc->jobContext->barrier.barrier();
@@ -162,7 +164,7 @@ void shufflePhase(void *arg)
             {
                 currKeyVector.push_back(jc->contexts[i].intermediateVec.back());
                 jc->contexts[i].intermediateVec.pop_back();
-                jc->counter += 1;
+                jc->counter++;
             }
         }
         jc->shuffledVec.push_back(currKeyVector);
@@ -174,13 +176,14 @@ void shufflePhase(void *arg)
 void waitForJob(JobHandle job)
 {
     auto *jc = static_cast<JobContext *>(job);
+
     if(!jc->threadsJoined)
     {
-    for (int i = 0; i < jc->numOfThreads; ++i)
-    {
-        ERROR_WRAPPER(pthread_join(jc->threads[i], nullptr), THREAD_JOIN_FAIL)
-    }
         jc->threadsJoined = true;
+        for (int i = 0; i < jc->numOfThreads; ++i)
+        {
+            ERROR_WRAPPER(pthread_join(jc->threads[i], nullptr), THREAD_JOIN_FAIL)
+        }
     }
 }
 
