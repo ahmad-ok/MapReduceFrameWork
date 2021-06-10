@@ -79,8 +79,7 @@ void *MapReducePhase(void *arg)
     uint64_t i;
     while ((unsigned int)tc->jobContext->nextInputIdx < tc->jobContext->getTotalKeys())
     {
-        tc->jobContext->nextInputIdx++;
-        i = tc->jobContext->nextInputIdx.load() - 1;
+        i = tc->jobContext->nextInputIdx++;
         InputPair currPair = tc->jobContext->inputVec[i];
         tc->jobContext->client.map(currPair.first, currPair.second, tc);
     }
