@@ -4,7 +4,6 @@
 #include <atomic>
 #include "MapReduceFramework.h"
 #include <pthread.h>
-#include "semaphore.h"
 #include <iostream>
 #include "Barrier.h"
 
@@ -34,7 +33,6 @@ public:
     Barrier barrier;
     pthread_mutex_t lock;
     pthread_mutex_t reduce_lock;
-    sem_t semaphore;
     const InputVec& inputVec;
     OutputVec& outputVec;
     const MapReduceClient& client;

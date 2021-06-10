@@ -9,24 +9,19 @@ JobContext::JobContext(pthread_t *threads,ThreadContext* contexts , OutputVec &o
                        client(client), threads(threads), state({UNDEFINED_STAGE, 0}) ,counter(0), isWaiting(false),
                        nextInputIdx(0),numOfVecsToReduce(0),numOfIntermediatePairs(0), numOfThreads(numOfThreads), barrier(Barrier(numOfThreads))
 {
-    //todo check Failiures
-    sem_init(&semaphore,0,0);
-    pthread_mutex_init(&lock, nullptr);
-    pthread_mutex_init(&reduce_lock, nullptr);
+
 }
 
 void JobContext::setTotalKeys(uint64_t totalKeys)
 {
 
     uint64_t mask = 0x7fffffff;
-    //todo : 32 or 31 ???
     counter = (counter & (~mask << (unsigned)31)) | (totalKeys << (unsigned)31);
 }
 
 
 uint64_t JobContext::getTotalKeys()
 {
-    //todo : 32 or 31 ???
     return (counter >> (unsigned)31) & (unsigned)(0x7fffffff);
 }
 
@@ -43,7 +38,8 @@ stage_t JobContext::getStage()
 
 JobContext::~JobContext()
 {
-   // pthread_mutex_destroy(&lock);
-    //delete[] threads;
-    //delete contexts;
+    pthread_mutex_destroy(&lock);
+    pthread_mutex_destroy(&reduce_lock);
+    delete[] threads;
+    delete[] contexts;
 }

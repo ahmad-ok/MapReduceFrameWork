@@ -74,9 +74,15 @@ int main(int argc, char** argv)
 	VString s1("This string is full of characters");
 	VString s2("Multithreading is awesome");
 	VString s3("race conditions are bad");
+    VString s4("race conditions are bad");
+    VString s5("race conditions are bad");
+    VString s6("race conditions are bad");
 	inputVec.push_back({nullptr, &s1});
 	inputVec.push_back({nullptr, &s2});
 	inputVec.push_back({nullptr, &s3});
+    inputVec.push_back({nullptr, &s4});
+    inputVec.push_back({nullptr, &s5});
+    inputVec.push_back({nullptr, &s6});
 	JobState state;
     JobState last_state={UNDEFINED_STAGE,0};
 	JobHandle job = startMapReduceJob(client, inputVec, outputVec, 4);

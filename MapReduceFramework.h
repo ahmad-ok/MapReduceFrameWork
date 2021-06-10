@@ -1,6 +1,8 @@
 #ifndef MAPREDUCEFRAMEWORK_H
 #define MAPREDUCEFRAMEWORK_H
 
+#define MEM_ALLOC_FAIL "system error: Memory Allocation Error"
+
 #include "MapReduceClient.h"
 
 typedef void* JobHandle;
