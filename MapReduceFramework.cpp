@@ -174,11 +174,14 @@ void shufflePhase(void *arg)
 void waitForJob(JobHandle job)
 {
     auto *jc = static_cast<JobContext *>(job);
+    if(!jc->threadsJoined)
+    {
     for (int i = 0; i < jc->numOfThreads; ++i)
     {
         ERROR_WRAPPER(pthread_join(jc->threads[i], nullptr), THREAD_JOIN_FAIL)
     }
-    jc->threadsJoined = true;
+        jc->threadsJoined = true;
+    }
 }
 
 void closeJobHandle(JobHandle job)
