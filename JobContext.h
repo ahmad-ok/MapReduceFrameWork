@@ -31,12 +31,14 @@ public:
 
     int numOfThreads;
     Barrier barrier;
+
     pthread_mutex_t lock{};
     pthread_mutex_t reduce_lock{};
+    pthread_mutex_t stateChange_lock{};
+
     const InputVec& inputVec;
     OutputVec& outputVec;
     const MapReduceClient& client;
-    JobState state;
     pthread_t* threads;
     ThreadContext* contexts;
     bool threadsJoined;
