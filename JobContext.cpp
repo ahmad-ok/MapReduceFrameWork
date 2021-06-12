@@ -40,6 +40,8 @@ JobContext::~JobContext()
 {
     pthread_mutex_destroy(&lock);
     pthread_mutex_destroy(&reduce_lock);
+    pthread_mutex_destroy(&stateChange_lock);
+    pthread_mutex_destroy(&wait_lock);
     delete[] threads;
     delete[] contexts;
 }
