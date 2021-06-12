@@ -6,6 +6,7 @@
 #include <pthread.h>
 #include <iostream>
 #include "Barrier.h"
+#include <unistd.h>
 
 #define MUTEX_INIT_FAIL "system error: initializing mutex for thread failed\n"
 #define THREAD_INIT_FAIL "system error: creating thread failed\n"

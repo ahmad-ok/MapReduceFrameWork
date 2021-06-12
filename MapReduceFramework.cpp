@@ -11,6 +11,7 @@
 #define MUTEX_UNLOCK_FAIL "system error: unlocking mutex failed\n"
 #define ERROR_WRAPPER(condition, msg) if(condition){print_sys_error(msg);}
 
+
 void *MapReducePhase(void *arg);
 
 void shufflePhase(void *arg);
@@ -34,7 +35,8 @@ JobHandle startMapReduceJob(const MapReduceClient &client,
     auto *jobContext = new JobContext(threads, contexts, outputVec, inputVec, client, multiThreadLevel);
     ERROR_WRAPPER((pthread_mutex_init(&jobContext->lock, nullptr) ||
                    pthread_mutex_init(&jobContext->reduce_lock, nullptr) ||
-                   pthread_mutex_init(&jobContext->stateChange_lock, nullptr) ), MUTEX_INIT_FAIL)
+                   pthread_mutex_init(&jobContext->stateChange_lock, nullptr)||
+                   pthread_mutex_init(&jobContext->wait_lock, nullptr)), MUTEX_INIT_FAIL)
     jobContext->setTotalKeys(inputVec.size());
     for (int i = 0; i < multiThreadLevel; ++i)
     {
@@ -53,17 +55,15 @@ void getJobState(JobHandle job, JobState *state)
 
     ERROR_WRAPPER(pthread_mutex_lock(&jc->stateChange_lock), MUTEX_LOCK_FAIL)
     state->percentage = (jc->getProcessedKeys() / (float) jc->getTotalKeys()) * 100;
-    state->stage = (stage_t)((int)((jc->counter.load()&((uint64_t)3 << 62)) >> 62));
+    state->stage = (stage_t)((uint64_t)((jc->counter.load()&(uint64_t)
+            ((uint64_t)3 << (uint64_t)62)) >> (uint64_t)62));
     ERROR_WRAPPER(pthread_mutex_unlock(&jc->stateChange_lock), MUTEX_UNLOCK_FAIL)
 }
 
 void emit2(K2 *key, V2 *value, void *context)
 {
     auto *tc = static_cast<ThreadContext *>(context);
-    IntermediatePair pair;
-    pair.first = key;
-    pair.second = value;
-    tc->intermediateVec.push_back(pair);
+    tc->intermediateVec.push_back(IntermediatePair(key,value));
     tc->jobContext->numOfIntermediatePairs++;
 }
 
@@ -72,23 +72,26 @@ void emit3(K3 *key, V3 *value, void *context)
     auto *jc = static_cast<JobContext *>(context);
     ERROR_WRAPPER(pthread_mutex_lock(&jc->lock), MUTEX_LOCK_FAIL)
     jc->outputVec.push_back(OutputPair(key, value));
-    jc->counter += 1;
+    jc->counter ++;
     ERROR_WRAPPER(pthread_mutex_unlock(&jc->lock), MUTEX_UNLOCK_FAIL)
 }
 
 void *MapReducePhase(void *arg)
 {
+    usleep(10);
+
     auto *tc = static_cast<ThreadContext *>(arg);
     tc->jobContext->counter = (~( (uint64_t)3 << (uint64_t)62) & tc->jobContext->counter.load()) +
                                 ((uint64_t)1 << (uint64_t)62);
     uint64_t i;
-    while ((unsigned int)tc->jobContext->nextInputIdx < tc->jobContext->getTotalKeys())
+
+    while ((i = tc->jobContext->nextInputIdx ++)< tc->jobContext->getTotalKeys())
     {
-        i = tc->jobContext->nextInputIdx++;
         InputPair currPair = tc->jobContext->inputVec[i];
         tc->jobContext->client.map(currPair.first, currPair.second, tc);
         tc->jobContext->counter++;
     }
+
 
     //Sort the intermediate Vector
     //Note: no thread gets to this Stage if still it can process any pair of (k1,v1)
@@ -122,13 +125,13 @@ void *MapReducePhase(void *arg)
 
 void reducePhase(const ThreadContext *tc)
 {
-    while (true)
+    while (!tc->jobContext->shuffledVec.empty())
     {
         ERROR_WRAPPER(pthread_mutex_lock(&tc->jobContext->reduce_lock), MUTEX_LOCK_FAIL)
         if (tc->jobContext->shuffledVec.empty())
         {
             ERROR_WRAPPER(pthread_mutex_unlock(&tc->jobContext->reduce_lock), MUTEX_UNLOCK_FAIL)
-            break;
+            return;
         }
         IntermediateVec currVec = tc->jobContext->shuffledVec.back();
         tc->jobContext->shuffledVec.pop_back();
@@ -195,6 +198,7 @@ void waitForJob(JobHandle job)
     }
     ERROR_WRAPPER(pthread_mutex_unlock(&jc->wait_lock), MUTEX_LOCK_FAIL);
 }
+
 
 void closeJobHandle(JobHandle job)
 {
