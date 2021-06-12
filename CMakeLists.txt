@@ -41,7 +41,7 @@ endif()
 
 #######################################
 
-add_executable(mattanTester SampleClient.cpp JobContext.cpp JobContext.h Barrier.cpp Barrier.h MapReduceClient.h MapReduceFramework.cpp MapReduceFramework.h)
+add_executable(mattanTester SampleClient.cpp YOUR_FILES_HERE)
 target_include_directories(mattanTester PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../)
 target_link_libraries(mattanTester PRIVATE gtest_main)
 

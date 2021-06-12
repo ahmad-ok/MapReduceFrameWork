@@ -35,6 +35,7 @@ public:
     pthread_mutex_t lock{};
     pthread_mutex_t reduce_lock{};
     pthread_mutex_t stateChange_lock{};
+    pthread_mutex_t wait_lock{};
 
     const InputVec& inputVec;
     OutputVec& outputVec;

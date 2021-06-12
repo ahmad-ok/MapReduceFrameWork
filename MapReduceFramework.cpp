@@ -79,7 +79,8 @@ void emit3(K3 *key, V3 *value, void *context)
 void *MapReducePhase(void *arg)
 {
     auto *tc = static_cast<ThreadContext *>(arg);
-    tc->jobContext->counter = (~((uint64_t) 3 << 62) & tc->jobContext->counter.load()) + ((uint64_t)1 << 62);
+    tc->jobContext->counter = (~( (uint64_t)3 << (uint64_t)62) & tc->jobContext->counter.load()) +
+                                ((uint64_t)1 << (uint64_t)62);
     uint64_t i;
     while ((unsigned int)tc->jobContext->nextInputIdx < tc->jobContext->getTotalKeys())
     {
@@ -107,7 +108,8 @@ void *MapReducePhase(void *arg)
     {
         shufflePhase(tc->jobContext);
         ERROR_WRAPPER(pthread_mutex_lock(&tc->jobContext->stateChange_lock), MUTEX_LOCK_FAIL)
-        tc->jobContext->counter = (((uint64_t) tc->jobContext->numOfVecsToReduce << 31) + ((uint64_t)3 << 62));
+        tc->jobContext->counter = (((uint64_t) tc->jobContext->numOfVecsToReduce << (uint64_t)31) +
+                                   ((uint64_t)3 << (uint64_t)62));
         ERROR_WRAPPER(pthread_mutex_unlock(&tc->jobContext->stateChange_lock), MUTEX_UNLOCK_FAIL)
 
     }
@@ -141,7 +143,7 @@ void shufflePhase(void *arg)
     auto *jc = static_cast<JobContext *>(arg);
 
     ERROR_WRAPPER(pthread_mutex_lock(&jc->stateChange_lock), MUTEX_LOCK_FAIL)
-    jc->counter = (((uint64_t) jc->numOfIntermediatePairs << 31) + ((uint64_t)2 << 62));
+    jc->counter = (((uint64_t) jc->numOfIntermediatePairs << (uint64_t)31) + ((uint64_t)2 << (uint64_t)62));
     ERROR_WRAPPER(pthread_mutex_unlock(&jc->stateChange_lock), MUTEX_UNLOCK_FAIL)
 
     while (jc->getTotalKeys() != jc->getProcessedKeys())
@@ -182,6 +184,7 @@ void waitForJob(JobHandle job)
 {
     auto *jc = static_cast<JobContext *>(job);
 
+    ERROR_WRAPPER(pthread_mutex_lock(&jc->wait_lock), MUTEX_LOCK_FAIL);
     if(!jc->threadsJoined)
     {
         jc->threadsJoined = true;
@@ -190,6 +193,7 @@ void waitForJob(JobHandle job)
             ERROR_WRAPPER(pthread_join(jc->threads[i], nullptr), THREAD_JOIN_FAIL)
         }
     }
+    ERROR_WRAPPER(pthread_mutex_unlock(&jc->wait_lock), MUTEX_LOCK_FAIL);
 }
 
 void closeJobHandle(JobHandle job)

@@ -462,8 +462,6 @@ TEST(MattanTests, outputTestWaitFromTwoThreads) {
         }
     });
 
-
-
     waitForJob(job);
     std::map<char, int> expectedOutput = {{'0',  13258},
                                           {'1',  13014},
@@ -585,9 +583,6 @@ TEST(MattanTests, outputTestWaitFromTwoThreads) {
     }
     thread.join();
 }
-
-
-
 
 TEST(MattanTests, outputTest3Clients) {
     CounterClient client1;
@@ -986,7 +981,6 @@ TEST(MattanTests, outputTest3Clients) {
     }
 }
 
-
 TEST(MattanTests, outputTestOneThreadOnly) {
     CounterClient client;
     std::vector<std::string> a;
@@ -1140,11 +1134,6 @@ TEST(MattanTests, outputTestOneThreadOnly) {
         FAIL() << "Your program has missed " << expectedOutput.size() << " letters, the first letter you missed is: " << iter->first << " whose count should be " << iter->second;
     }
 }
-
-
-
-
-
 
 TEST(MattanTests, progressTest) {
     for (int i = 0; i < REPEATS; ++i)
@@ -1318,13 +1307,13 @@ void randbody(int iterations) {
 }
 
 TEST(MattanTests, randomTest) {
-	EXPECT_EXIT(randbody(RANDOM_REPEATS), ::testing::KilledBySignal(24), ::testing::MatchesRegex(""));
+//	EXPECT_EXIT(randbody(RANDOM_REPEATS), ::testing::KilledBySignal(24), ::testing::MatchesRegex(""));
     //TODO  If you fail this test, comment the line above and uncomment the line below to see what exit code you failed with more easily.
     // The task should be killed by signal 24 (SIGXCPU) which means the cpu time limit was exceeded. That should be the only reason that
     // the task dies. This should happen only after more than 100 iterations. Running sanitizer will slow the program down
     // a lot and could cause a false positive.
     // Meant to be run on aquarium computers since on private computers you probably won't ever get the kill signal.
-    //randbody(RANDOM_REPEATS);
+    randbody(RANDOM_REPEATS);
 
 }
 
