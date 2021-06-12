@@ -78,8 +78,6 @@ void emit3(K3 *key, V3 *value, void *context)
 
 void *MapReducePhase(void *arg)
 {
-    usleep(10);
-
     auto *tc = static_cast<ThreadContext *>(arg);
     tc->jobContext->counter = (~( (uint64_t)3 << (uint64_t)62) & tc->jobContext->counter.load()) +
                                 ((uint64_t)1 << (uint64_t)62);
